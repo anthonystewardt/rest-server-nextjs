@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Development
+Steps to run project
 
-## Getting Started
-
-First, run the development server:
+1. Up Database
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Api Rest with Nextjs
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. How to connect Prisma with my project in Nextjs
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```bash
+npx prisma init
+```
 
-## Learn More
+2. Rename the values in the .env file
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Create the model
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```prisma
+// prisma/schema.prisma
+model Todo {
+  id        String      @id @default(uuid())
+  description  String
+  complete   Boolean     @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
 
-## Deploy on Vercel
+4. Run the migration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npx prisma migrate dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+5. Generate Prisma Client to matipulate tha data
+
+```bash
+npx prisma generate
+```
+
+6. And Finally, Create the directory lib with prisma.ts file.
+
+```ts
+import { PrismaClient } from "@prisma/client";
+
+let prisma: PrismaClient;
+
+if (process.env.NODE_ENV === "production") {
+  prisma = new PrismaClient();
+} else {
+  if (!(global as any).prisma) {
+    (global as any).prisma = new PrismaClient();
+  }
+  prisma = (global as any).prisma;
+}
+
+export default prisma;
+```
+
+## Seeder
+
+```ts
+import prisma from '@/app/lib/prisma'
+import { NextResponse, NextRequest } from 'next/server'
+
+export async function GET(request: Request) {
+
+  await prisma.todo.deleteMany();
+
+  await prisma.todo.createMany({
+    data: [
+      {
+        description: "Piedra del alma",
+        complete: true
+      },
+      {
+        description: "Piedra del tiempo",
+      },
+      {
+        description: "Priedra del espacio",
+      }
+    ]
+  });
+
+  // const todo = await prisma.todo.create({
+  //   data: {
+  //     description: "Hello World"
+  //   }
+  // });
+
+  // console.log(todo);
+
+  return NextResponse.json({
+    message: "Seed execute"
+  });
+}
+```
+
+- API:
+
+```bash
+GET  localhost:3000/api/seed
+```
+
+## If you have some changes in your Model
+
+```bash
+npx prisma db push
+```
